@@ -7,9 +7,12 @@ from models import Todos
 from pydantic import BaseModel, Field
 from fastapi.responses import JSONResponse
 from router import auth
+from router.auth import get_current_user
+
 app = FastAPI()
 models.Base.metadata.create_all(bind=engine)
 app.include_router(auth.router)
+
 
 class Todo(BaseModel):
     id: int
@@ -35,6 +38,7 @@ def get_db():
 
 
 db_dependency = Annotated[Session, Depends(get_db)]
+user_dependency = Annotated[dict, Depends(get_current_user)]
 
 
 @app.get("/")
@@ -53,8 +57,10 @@ def get_todos(db: db_dependency, todo_id: int):
 
 
 @app.post("/create")
-def create_todos(db: db_dependency, newTodo: Todo):
-    todo_model = Todos(**newTodo.model_dump())
+def create_todos(user: user_dependency, db: db_dependency, newTodo: Todo):
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found!")
+    todo_model = Todos(**newTodo.model_dump(), owner_id=user.get("id"))
     db.add(todo_model)
     db.commit()
 
