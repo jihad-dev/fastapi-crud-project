@@ -36,8 +36,8 @@ def authenticate_user(username, password, db):
     return False
 
 
-def generate_access_token(username: str, user_id: str, expires: timedelta):
-    encode = {"sub": username, "id": user_id}
+def generate_access_token(username: str, user_id: str, role: str, expires: timedelta):
+    encode = {"sub": username, "id": user_id, "role": role}
     expires = datetime.now(timezone.utc) + expires
     encode.update({"exp": expires})
     return jwt.encode(encode, SECRET_KEY, algorithm=ALGORITHM)
@@ -48,12 +48,13 @@ def get_current_user(token: Annotated[str, Depends(OAuth2_barear)]):
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
         user_id: int = payload.get("id")
+        role: str = payload.get("role")
         if username is None or user_id is None:
             raise HTTPException(status_code=404, detail="user not found!")
-        return {"username": username, "id": user_id}
+        return {"username": username, "id": user_id, "role":role}
     except:
         raise HTTPException(status_code=404, detail="user not found!")
-    
+
 
 def get_db():
     db = sessionLocal()
@@ -91,5 +92,7 @@ def login_user(
     user = authenticate_user(form_data.username, form_data.password, db)
     if not user:
         return "Failed Authentication"
-    token = generate_access_token(user.username, user.id, timedelta(minutes=30))
+    token = generate_access_token(
+        user.username, user.id, user.role, timedelta(minutes=30)
+    )
     return {"access_token": token, "token_type": "bearer"}
