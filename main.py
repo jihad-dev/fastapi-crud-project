@@ -6,13 +6,14 @@ from typing import Annotated, Optional
 from models import Todos
 from pydantic import BaseModel, Field
 from fastapi.responses import JSONResponse
-from router import auth,admin
+from router import auth, admin
 from router.auth import get_current_user
 
 app = FastAPI()
 models.Base.metadata.create_all(bind=engine)
 app.include_router(auth.router)
 app.include_router(admin.router)
+
 
 class Todo(BaseModel):
     id: int
@@ -42,6 +43,11 @@ user_dependency = Annotated[dict, Depends(get_current_user)]
 
 
 @app.get("/")
+def Home():
+    return "Hello Next Level Developer💀"
+
+
+@app.get("/todos")
 def get_todos(db: db_dependency, user: user_dependency):
     if user is None:
         raise HTTPException(status_code=404, detail="User not found!")
@@ -73,6 +79,7 @@ def create_todos(user: user_dependency, db: db_dependency, newTodo: Todo):
     db.commit()
     return {"message": "Todo Created successfully"}
 
+
 @app.put("/update/{todo_id}")
 def update_todos(
     user: user_dependency, db: db_dependency, todo_id: int, update_todo: UpdateTodo
@@ -96,12 +103,19 @@ def update_todos(
 
 
 @app.delete("/delete/{todo_id}")
-def delete_todos(user: user_dependency,db: db_dependency, todo_id: int):
+def delete_todos(user: user_dependency, db: db_dependency, todo_id: int):
     if user is None:
         raise HTTPException(status_code=404, detail="Failed Authentication!")
-    todo = db.query(Todos) .filter(Todos.owner_id == user.get("id")).filter(Todos.id == todo_id).first()
+    todo = (
+        db.query(Todos)
+        .filter(Todos.owner_id == user.get("id"))
+        .filter(Todos.id == todo_id)
+        .first()
+    )
     if todo is None:
         raise HTTPException(status_code=404, detail="Todo not found!!")
-    db.query(Todos) .filter(Todos.owner_id == user.get("id")).filter(Todos.id == todo_id).delete()
+    db.query(Todos).filter(Todos.owner_id == user.get("id")).filter(
+        Todos.id == todo_id
+    ).delete()
     db.commit()
     return {"message": "Todo Deleted successfully"}
